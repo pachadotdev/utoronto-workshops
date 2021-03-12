@@ -1,0 +1,340 @@
+---
+title: "Using Computational Tools Besides R"
+subtitle: "How I Learned to Use SQL and Love GitHub"
+author: "Mauricio 'Pachá' Vargas · PUC Chile"
+institute: "University of Toronto Students Union's Workshops"
+date: "2021-03-16"
+output:
+  xaringan::moon_reader:
+    includes:
+      in_header: "mathjax-equation-numbers.html"
+    lib_dir: libs
+    css: ["xaringan-themer.css"]
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      slideNumberFormat: ""
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+```
+
+```{r xaringan-themer, include=FALSE, warning=FALSE}
+library(emojifont) 
+library(xaringanthemer)
+style_mono_accent(
+  base_color = "#002a5c",
+  header_font_google = google_font("Fira Sans"),
+  text_font_google = google_font("Fira Sans"),
+  code_font_google = google_font("Fira Mono"),
+  text_font_size = "1.25rem",
+  colors = c(white = "#FFFFFF", gray = "#898C9C"),
+  extra_css = list(
+    ".large" = list(
+      "font-size" = "2.75rem"
+    ),
+    ".inverse > h1 > code" = list(
+      "color" = "var(--inverse-header-color)"
+    ),
+    ".colophon" = list(
+      "font-size" = "0.9rem",
+      "position" = "absolute",
+      "bottom" = 0
+    ),
+    ".flex-box" = list(
+    "display" = "flex",
+    "flex-direction" = "column",
+    "justify-content" = "space-between",
+    "height" = "70%"
+    ),
+    # the first p of .flext-box should have no top-margin
+    ".flex-box > p:first-child" = list(
+      "margin-top" = 0
+    ),
+    ".flex-box > p:last-of-type" = list(
+      "padding-bottom" = "1em"
+    ),
+    ".seventyfive" = list(
+      "width" = "75%",
+      "margin" = "0 auto"
+    ),
+    ".title-slide h1" = list(
+      "font-size" = "4rem",
+      "margin-bottom" = "0rem"
+      ),
+    ".title-slide h2" = list(
+      "font-size" = "1.75rem",
+      "margin-top" = "0rem",
+      "margin-bottom" = "4rem"
+      ),
+    ".title-slide h3" = list(
+      "font-size" = "1.75rem",
+      "margin-block-start" = "0rem",
+      "margin-block-end" = "0rem"
+      ),
+    ".title-slide > h3:last-of-type" = list(
+      "font-size" = "1rem",
+      "margin-block-start" = "4rem",
+      "margin-block-end" = "2rem"
+    )
+  )
+)
+```
+
+---
+
+# Required packages
+
+Check that you have installed the following packages:
+
+* `library(usethis)` ✔
+* `library(HistData)` ✔
+* `library(RPostgres)` ✔
+* `library(askpass)` ✔
+* `library(ggplot2)` ✔
+* `library(pkgdown)` ✔
+
+---
+
+background-position: 50% 50%
+background-size: cover
+class: center, middle
+
+# Now run create_project("01-models-review")
+
+---
+
+# Linear models review
+
+Let $\renewcommand{\vec}[1]{\boldsymbol{#1}} \newcommand{\R}{\mathbb{R}} \vec{y} \in \R^n$ be the outcome and $X \in \mathbb{R}^{n\times p}$ be the design matrix in the context of a linear model with intercept:
+
+$$\vec{y} = X\vec{\beta} + \vec{e}$$
+
+Being: 
+
+$$\underset{n\times 1}{\vec{y}} = \begin{pmatrix}y_0 \cr y_1 \cr \vdots \cr y_n\end{pmatrix} \text{ and }
+\underset{n\times p}{X} = \begin{pmatrix}1 & x_{11} & & x_{1p} \cr 1 & x_{21} & & x_{2p} \cr & \ddots & \cr 1 & x_{n1} & & x_{np}\end{pmatrix} = (\vec{1} \: \vec{x}_1 \: \ldots \: \vec{x}_p)$$
+
+---
+
+# Linear models review
+
+In linear models the aim is to minimize the error term by choosing $\hat{\vec{\beta}}$. One possibility is to minimize the squared error by solving this optimization problem:
+
+$$
+\begin{equation}
+\label{min}
+\displaystyle \min_{\vec{\beta}} S = \|\vec{y} - X\vec{\beta}\|^2
+\end{equation}
+$$
+
+Books such as [Baltagi](https://www.amazon.com/Econometrics-Springer-Texts-Business-Economics/dp/3642200583) discuss how to solve $\eqref{min}$ and other equivalent approaches that result in this optimal estimator:
+
+$$
+\begin{equation}
+\label{beta}
+\hat{\vec{\beta}} = (X^tX)^{-1} X^t\vec{y}
+\end{equation}
+$$
+---
+
+# Linear models review
+
+With one independent variable and intercept, this is $y_i = \beta_0 + \beta_1 x_{i1} + e_i$, equation $\eqref{beta}$ means:
+$$
+\begin{equation}
+\label{beta2}
+\hat{\beta}_1 = cor(\vec{y},\vec{x}) \cdot \frac{sd(\vec{y})}{sd(\vec{x})} \text{ and } \hat{\beta}_0 = \bar{y} - \hat{\beta}_1 \bar{\vec{x}}
+\end{equation}
+$$
+---
+
+# Linear models review
+
+Consider the model:
+$$mpg_i = \beta_1 wt_i + \beta_2 cyl_i + e_i$$
+
+Now create the script `01-linear-models.R` and fit the model:
+
+```{r anova_mtcars_example1, eval = FALSE}
+lm(mpg ~ wt + cyl, data = mtcars)
+```
+
+---
+
+# Linear models review
+
+Create a function that returns the next matrix for any $(x_1, x_2)$ such as:
+
+```{r, eval = FALSE}
+x1 <- mtcars$wt
+x2 <- mtcars$cyl
+
+my_design_matrix <- function(x1, x2) {
+  x0 <- rep(1, length(x1))
+  X <- cbind(x0,x1,x2)
+  return(X)
+}
+```
+
+---
+
+# Linear models review
+
+It's the same to use `lm` or to perform a matrix multiplication because of equation $\eqref{beta}$. Let's use the previous function to compare:
+
+```{r, eval = FALSE}
+y <- mtcars$mpg
+
+fit <- lm(y ~ x1 + x2)
+coefficients(fit)
+
+X <- my_design_matrix(x1,x2)
+beta <- solve(t(X) %*% X) %*% (t(X) %*% y)
+beta
+```
+
+---
+
+# Linear models review
+
+Verify $\eqref{beta2}$ by using R commands and the Galton dataset:
+
+```{r, eval = FALSE}
+library(HistData)
+
+y <- Galton$child
+x <- Galton$parent
+beta1 <- cor(y, x) *  sd(y) / sd(x)
+beta0 <- mean(y) - beta1 * mean(x)
+
+c(beta0, beta1)
+
+lm(y ~ x)
+```
+
+---
+
+# Linear models review
+
+Consider the model:
+
+$$y_i - \bar{y} = \beta_0 + \beta_1 (x_{i1} - \bar{x}_{1}) + \beta_2 (x_{i2} - \bar{x}_{2}) + e_i$$
+
+A particular case of this would be:
+
+```{r, eval = FALSE}
+new_y <- mtcars$mpg - mean(mtcars$mpg)
+new_x1 <- mtcars$wt - mean(mtcars$wt)
+new_x2 <- mtcars$cyl - mean(mtcars$cyl)
+
+fit2 <- lm(new_y ~ new_x1 + new_x2)
+summary(fit2)
+```
+
+What can we say about $\beta_0$?
+
+---
+
+# Linear models review
+
+Now fitting the model:
+$$y_i - \bar{y}_i = \beta_1 (x_{i1} - \bar{x}_{i1}) + \beta_2 (x_{i2} - \bar{x}_{i2}) + e_i$$
+```{r, eval = FALSE}
+fit3 <- lm(new_y ~ new_x1 + new_x2 + 0)
+# or fit3 <- lm(new_y ~ new_x1 + new_x2 - 1)
+summary(fit3)
+```
+
+---
+
+background-position: 50% 50%
+background-size: cover
+class: center, middle
+
+# 2 minutes break
+
+---
+
+background-position: 50% 50%
+background-size: cover
+class: center, middle
+
+# Now run create_project("02-sql-connections")
+
+---
+
+# Using SQL from R
+
+* Explore https://databases.pacha.dev/#intendo-database 
+* Load usethis, dplyr and RPostgres
+* Create the environmental variables `dbedu_usr` and `dbedu_pwd` with `edit_r_environ()`
+
+---
+
+# Using SQL from R
+
+* Create an R script `con1` with `use_r("con1")`
+* Create a connection object in the script that uses the environmental variables
+
+```{r, eval = FALSE}
+con1 <- dbConnect(
+  Postgres(),
+  user = Sys.getenv("dbedu_usr"),
+  password = Sys.getenv("dbedu_pwd"),
+  dbname = "intendo",
+  host = "databases.pacha.dev"
+)
+```
+
+---
+
+# Using SQL from R
+
+Use any of the connections to obtain a subset from the `users` table containing
+
+* 🇨🇦 as `country`
+* Users of the `android` `platform`
+* And that were `acquired` from `organic` growth
+
+```{r, eval = FALSE}
+canada_android_organic <- tbl(con1, "users") %>% 
+  filter(
+    country == "Canada",
+    platform == "android",
+    acquired == "organic"
+  ) %>% 
+  collect()
+```
+
+---
+
+# Using SQL from R
+
+Free exercise: Explore the different countries, platforms and acquisition sources. Then compare your query with the previous one and comment freely.
+
+Just a tiny help:
+```{r, eval = FALSE}
+tbl(con1, "users") %>% 
+  select(platform) %>% 
+  distinct()
+```
+
+---
+
+background-position: 50% 50%
+background-size: cover
+class: center, middle
+
+# 5 minutes break
+
+---
+
+background-position: 50% 50%
+background-size: cover
+class: center, middle
+
+# Now run create_package("mypackage")
+# Participation shall be very important
