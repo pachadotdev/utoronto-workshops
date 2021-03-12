@@ -14,9 +14,12 @@
   * usethis
   * HistData
   * RPostgres
-  * askpass
-  * Ggplot2
+  * rmarkdown
+  * ggplot2
   * pkgdown
+  * testthat
+  * askpass
+* Create an account on GitHub  
 
 ## Contents
 
