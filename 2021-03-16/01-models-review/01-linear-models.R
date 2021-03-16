@@ -2,7 +2,8 @@
 
 ## Simple regression
 
-lm(mpg ~ wt + cyl, data = mtcars)
+foo <- lm(mpg ~ wt + cyl, data = mtcars)
+bar <- foo$model
 
 ## Define two vectors and a function for the design matrix
 

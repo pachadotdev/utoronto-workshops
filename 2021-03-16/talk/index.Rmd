@@ -154,7 +154,7 @@ $$
 # Linear models review
 
 Consider the model:
-$$mpg_i = \beta_1 wt_i + \beta_2 cyl_i + e_i$$
+$$mpg_i = \beta_0 + \beta_1 wt_i + \beta_2 cyl_i + e_i$$
 
 Now create the script `01-linear-models.R` and fit the model:
 
